@@ -1,0 +1,59 @@
+# ─── Go ───────────────────────────────────────────────────────────────────────
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/bin/
+/dist/
+
+# Test & coverage
+*.test
+*.out
+coverage.html
+coverage.txt
+
+# Dependency directories
+/vendor/
+
+# Go workspace
+go.work.sum
+
+# Air (live-reload)
+tmp/
+
+# ─── SvelteKit / Node ─────────────────────────────────────────────────────────
+node_modules/
+.svelte-kit/
+build/
+.vercel/
+.netlify/
+
+# Vite
+dist/
+*.local
+
+# Dependency lock (keep one; ignore the other if you only use npm or pnpm)
+# package-lock.json
+# pnpm-lock.yaml
+
+# ─── Environment & secrets ────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── IDE & editors ────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ─── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
