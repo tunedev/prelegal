@@ -3,11 +3,11 @@
 
 ## Overview
 
-> This is a SaaS product to allow users to draft legal agreements based in templates in the templates directory. The user AI chat order to establis> h what document they want and how to fill in the fields. The available documents are covered in catalog.son file in the proect root, included here: 
+> This is a SaaS product to allow users to draft legal agreements based on templates in the templates directory. The user uses an AI chat in order to establish what document they want and how to fill in the fields. The available documents are covered in catalog.json file in the project root, included here: 
 
 @catalog.json
 
-Before we start: the initial implementation is a frontend-only protorype that only supports Mutual NDA document with no AI chat.
+The AI chat is not yet implemented — see Implementation Status below for what currently exists.
 
 ## Development process
 ---
@@ -56,3 +56,10 @@ Backend available at http://localhost:8000
 - Purple Secondary: `#753991` (submit buttons)
 - Dark Navy: `#032147` (headings)
 - Gray Text `#888888`
+
+## Implementation Status
+
+- **PL-1 (done)**: Mutual NDA creator frontend (SvelteKit), form-driven, PDF export via browser print.
+- **PL-2 (done)**: CommonPaper legal document template dataset added to `templates/`.
+- **PL-3 (done)**: V1 technical foundation — Go/Echo backend in `backend/`, SQLite recreated from scratch on each startup with a `users` table (schema only, no signup/signin endpoints yet), frontend statically built and embedded into the Go binary via `go:embed` with SPA fallback, single multi-stage `Dockerfile`, and start/stop scripts in `scripts/` for Mac/Linux/Windows. Login is currently fake: it sets a client-side flag and does not call the backend.
+- **Not yet built**: AI chat, OpenRouter integration, real signup/signin auth, and support for any document type other than the Mutual NDA.
