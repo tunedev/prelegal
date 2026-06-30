@@ -23,6 +23,10 @@ go.work.sum
 # Air (live-reload)
 tmp/
 
+# Backend build output and runtime SQLite data
+/backend/backend
+/backend/data/
+
 # ─── SvelteKit / Node ─────────────────────────────────────────────────────────
 node_modules/
 .svelte-kit/

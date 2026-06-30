@@ -13,6 +13,8 @@ export default defineConfig({
   resolve: {
     alias: {
       $lib: fileURLToPath(new URL('./src/lib', import.meta.url)),
+      '$app/navigation': fileURLToPath(new URL('./src/test/mocks/app-navigation.js', import.meta.url)),
+      '$app/state': fileURLToPath(new URL('./src/test/mocks/app-state.svelte.js', import.meta.url)),
     },
   },
 });
