@@ -46,7 +46,7 @@ scripts/stop-linux.sh # Stop
 
 # Windows
 scripts/start-windows.ps1 # Start
-scripts/stop-windows.sh # Stop
+scripts/stop-windows.ps1 # Stop
 ```
 Backend available at http://localhost:8000
 
