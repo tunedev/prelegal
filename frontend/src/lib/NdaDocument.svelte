@@ -389,6 +389,7 @@
     height: 1px;
     border-top: 2px dashed #ccc;
     margin: 32px 0;
+    break-before: page;
   }
 
   .standard-terms {

@@ -16,36 +16,28 @@
     modifications: '',
   });
 
-  let downloading = $state(false);
-
-  async function handleDownload() {
-    downloading = true;
-    try {
-      await generatePdf('nda-document');
-    } finally {
-      downloading = false;
-    }
+  function handleDownload() {
+    generatePdf();
   }
 </script>
 
-<div class="flex flex-col h-screen bg-gray-50">
-  <header class="flex items-center justify-between px-6 py-4 bg-white border-b shadow-sm shrink-0">
+<div class="app-root flex flex-col h-screen bg-gray-50">
+  <header class="app-header flex items-center justify-between px-6 py-4 bg-white border-b shadow-sm shrink-0">
     <div>
       <h1 class="text-xl font-semibold text-gray-900">Mutual NDA Creator</h1>
       <p class="text-sm text-gray-500">Fill in the details to generate your Mutual Non-Disclosure Agreement</p>
     </div>
     <button
       onclick={handleDownload}
-      disabled={downloading}
-      class="px-5 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      class="px-5 py-2 bg-gray-900 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors"
     >
-      {downloading ? 'Generating...' : 'Download PDF'}
+      Save as PDF
     </button>
   </header>
 
   <div class="flex flex-1 min-h-0">
     <!-- Form Panel -->
-    <div class="w-2/5 overflow-y-auto border-r bg-white p-6 space-y-6">
+    <div class="form-panel w-2/5 overflow-y-auto border-r bg-white p-6 space-y-6">
 
       <!-- Party 1 -->
       <section>
@@ -190,7 +182,7 @@
     </div>
 
     <!-- Preview Panel -->
-    <div class="flex-1 overflow-y-auto bg-gray-100 p-6">
+    <div class="preview-panel flex-1 overflow-y-auto bg-gray-100 p-6">
       <div id="nda-document" class="shadow-md">
         <NdaDocument {form} />
       </div>
@@ -219,5 +211,31 @@
   :global(.input:disabled) {
     background: #f9fafb;
     color: #9ca3af;
+  }
+
+  @media print {
+    :global(.app-header),
+    :global(.form-panel) {
+      display: none !important;
+    }
+
+    :global(.app-root),
+    :global(.app-root > div) {
+      display: block !important;
+      height: auto !important;
+      overflow: visible !important;
+      background: white !important;
+    }
+
+    :global(#nda-document) {
+      box-shadow: none !important;
+      max-width: 100% !important;
+    }
+
+    :global(.preview-panel) {
+      overflow: visible !important;
+      background: white !important;
+      padding: 0 !important;
+    }
   }
 </style>
