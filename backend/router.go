@@ -9,10 +9,11 @@ import (
 
 // newRouter wires up the API routes and serves staticFS as a single-page
 // app, falling back to index.html for any path that isn't a real asset.
-func newRouter(staticFS fs.FS) *echo.Echo {
+func newRouter(staticFS fs.FS, chatClient *OpenRouterClient) *echo.Echo {
 	e := echo.New()
 
 	e.GET("/api/health", healthHandler)
+	e.POST("/api/chat", newChatHandler(chatClient))
 
 	fileServer := http.FileServer(http.FS(staticFS))
 	e.GET("/*", echo.WrapHandler(spaFallback(staticFS, fileServer)))

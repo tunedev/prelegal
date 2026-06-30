@@ -4,6 +4,7 @@ import (
 	"embed"
 	"io/fs"
 	"log"
+	"os"
 )
 
 //go:embed web/static
@@ -23,6 +24,8 @@ func main() {
 	}
 	defer db.Close()
 
-	e := newRouter(staticFS)
+	chatClient := newOpenRouterClient(os.Getenv("OPENROUTER_API_KEY"))
+
+	e := newRouter(staticFS, chatClient)
 	log.Fatal(e.Start(":8000"))
 }
