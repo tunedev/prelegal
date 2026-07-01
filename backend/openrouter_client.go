@@ -44,9 +44,17 @@ func newOpenRouterClient(apiKey string) *OpenRouterClient {
 	}
 }
 
+// streamTimeout bounds the whole streamed reply call so a stuck or
+// unresponsive free model can't hang the request forever. Overridden in
+// tests.
+var streamTimeout = 45 * time.Second
+
 // StreamChatReply streams an unconstrained conversational reply, calling
 // onChunk for each text delta, and returns the full accumulated reply.
 func (c *OpenRouterClient) StreamChatReply(ctx context.Context, messages []ChatMessage, onChunk func(string)) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, streamTimeout)
+	defer cancel()
+
 	reqBody := map[string]any{
 		"model":    chatModels[0],
 		"models":   chatModels,
@@ -67,6 +75,11 @@ func (c *OpenRouterClient) StreamChatReply(ctx context.Context, messages []ChatM
 // after a failure (e.g. a free model rate limit), so the retry isn't an
 // instant repeat of whatever just failed. Overridden to 0 in tests.
 var extractionRetryDelay = 2 * time.Second
+
+// extractionTimeout bounds each extraction attempt so a stuck or
+// unresponsive free model can't hang the request forever. Overridden in
+// tests.
+var extractionTimeout = 20 * time.Second
 
 // ExtractFormData makes a structured-output call over the given
 // conversation, returning the model's current best-guess NDA field values.
@@ -91,6 +104,9 @@ func (c *OpenRouterClient) ExtractFormData(ctx context.Context, messages []ChatM
 }
 
 func (c *OpenRouterClient) extractFormDataOnce(ctx context.Context, messages []ChatMessage, models []string) (FormData, error) {
+	ctx, cancel := context.WithTimeout(ctx, extractionTimeout)
+	defer cancel()
+
 	reqBody := map[string]any{
 		"model":       models[0],
 		"models":      models,

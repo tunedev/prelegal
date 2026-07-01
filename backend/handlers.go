@@ -18,9 +18,9 @@ type chatRequest struct {
 }
 
 // newChatHandler returns an Echo handler that streams a conversational
-// reply as SSE "message" events, then sends one final "formData" event
-// with the current best-guess NDA field values extracted from the
-// conversation.
+// reply as SSE "message" events, then a "replyDone" marker once the reply
+// is complete, then one final "formData" event with the current
+// best-guess NDA field values extracted from the conversation.
 func newChatHandler(client *OpenRouterClient) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		var req chatRequest
@@ -43,6 +43,7 @@ func newChatHandler(client *OpenRouterClient) echo.HandlerFunc {
 			writeSSEString(res, "error", err.Error())
 			return nil
 		}
+		writeSSE(res, "replyDone", "{}")
 
 		transcript := append(req.Messages, ChatMessage{Role: "assistant", Content: reply})
 		extractMessages := append([]ChatMessage{{Role: "system", Content: extractSystemPrompt}}, transcript...)

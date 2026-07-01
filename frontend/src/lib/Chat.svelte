@@ -11,6 +11,7 @@
   ]);
   let input = $state('');
   let loading = $state(false);
+  let extracting = $state(false);
 
   async function sendMessage() {
     const text = input.trim();
@@ -19,6 +20,7 @@
     messages.push({ role: 'user', content: text });
     input = '';
     loading = true;
+    extracting = false;
 
     const history = messages.map((m) => ({ role: m.role, content: m.content }));
     messages.push({ role: 'assistant', content: '' });
@@ -53,6 +55,8 @@
 
           if (event === 'message') {
             messages[assistantIndex].content += JSON.parse(data);
+          } else if (event === 'replyDone') {
+            extracting = true;
           } else if (event === 'formData') {
             onFormData(JSON.parse(data));
           } else if (event === 'error') {
@@ -64,6 +68,7 @@
       showError(assistantIndex);
     } finally {
       loading = false;
+      extracting = false;
     }
   }
 
@@ -82,17 +87,28 @@
 
 <div class="flex flex-col h-full">
   <div class="flex-1 overflow-y-auto space-y-3 p-4">
-    {#each messages as message}
+    {#each messages as message, i}
       <div class="flex {message.role === 'user' ? 'justify-end' : 'justify-start'}">
         <div
           class="max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap {message.role === 'user'
             ? 'bg-secondary text-white'
             : 'bg-gray-100 text-gray-900'}"
         >
-          {message.content}
+          {#if message.role === 'assistant' && message.content === '' && loading && i === messages.length - 1}
+            <span class="inline-flex gap-1 py-1" aria-label="Thinking">
+              <span class="thinking-dot"></span>
+              <span class="thinking-dot"></span>
+              <span class="thinking-dot"></span>
+            </span>
+          {:else}
+            {message.content}
+          {/if}
         </div>
       </div>
     {/each}
+    {#if extracting}
+      <p class="text-xs text-graytext px-1">Updating document details…</p>
+    {/if}
   </div>
 
   <div class="border-t p-3 flex items-end gap-2">
@@ -113,3 +129,32 @@
     </button>
   </div>
 </div>
+
+<style>
+  .thinking-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: currentColor;
+    animation: thinking-bounce 1.2s infinite ease-in-out;
+  }
+  .thinking-dot:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+  .thinking-dot:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+
+  @keyframes thinking-bounce {
+    0%,
+    80%,
+    100% {
+      opacity: 0.3;
+      transform: translateY(0);
+    }
+    40% {
+      opacity: 1;
+      transform: translateY(-3px);
+    }
+  }
+</style>

@@ -16,6 +16,23 @@ function fakeStream(chunks) {
   });
 }
 
+// A stream whose chunks are pushed externally, so a test can assert on
+// intermediate UI state between chunks arriving.
+function controlledStream() {
+  const encoder = new TextEncoder();
+  let controllerRef;
+  const stream = new ReadableStream({
+    start(controller) {
+      controllerRef = controller;
+    },
+  });
+  return {
+    stream,
+    push: (chunk) => controllerRef.enqueue(encoder.encode(chunk)),
+    close: () => controllerRef.close(),
+  };
+}
+
 const sampleFormData = {
   party1: { name: 'Alice', title: '', company: '', address: '' },
   party2: { name: '', title: '', company: '', address: '' },
@@ -114,6 +131,56 @@ describe('Chat', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows a thinking indicator before the first reply chunk arrives', async () => {
+    const { stream, push, close } = controlledStream();
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, body: stream });
+
+    render(Chat, { props: { onFormData: vi.fn() } });
+
+    await fireEvent.input(screen.getByPlaceholderText(/type your message/i), { target: { value: 'hi' } });
+    await fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/thinking/i)).toBeInTheDocument();
+    });
+
+    push(`event: message\ndata: ${JSON.stringify('Hello!')}\n\n`);
+    await waitFor(() => {
+      expect(screen.getByText('Hello!')).toBeInTheDocument();
+      expect(screen.queryByLabelText(/thinking/i)).not.toBeInTheDocument();
+    });
+
+    close();
+  });
+
+  it('shows an "updating document" indicator between the reply finishing and form data arriving', async () => {
+    const { stream, push, close } = controlledStream();
+    const onFormData = vi.fn();
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, body: stream });
+
+    render(Chat, { props: { onFormData } });
+
+    await fireEvent.input(screen.getByPlaceholderText(/type your message/i), { target: { value: 'hi' } });
+    await fireEvent.click(screen.getByRole('button', { name: /send/i }));
+
+    push(`event: message\ndata: ${JSON.stringify('Hello!')}\n\n`);
+    await waitFor(() => expect(screen.getByText('Hello!')).toBeInTheDocument());
+
+    expect(screen.queryByText(/updating document/i)).not.toBeInTheDocument();
+
+    push('event: replyDone\ndata: {}\n\n');
+    await waitFor(() => {
+      expect(screen.getByText(/updating document/i)).toBeInTheDocument();
+    });
+
+    push(`event: formData\ndata: ${JSON.stringify(sampleFormData)}\n\n`);
+    close();
+    await waitFor(() => {
+      expect(onFormData).toHaveBeenCalledWith(sampleFormData);
+      expect(screen.queryByText(/updating document/i)).not.toBeInTheDocument();
     });
   });
 });

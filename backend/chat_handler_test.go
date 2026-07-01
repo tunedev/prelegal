@@ -60,11 +60,21 @@ func TestChatHandler_StreamsReplyThenFormData(t *testing.T) {
 	if !strings.Contains(out, "Sure, ") || !strings.Contains(out, "let's start.") {
 		t.Errorf("expected streamed reply chunks in output, got: %s", out)
 	}
+	if !strings.Contains(out, "event: replyDone") {
+		t.Errorf("expected a replyDone event marking the end of the streamed reply, got: %s", out)
+	}
 	if !strings.Contains(out, "event: formData") {
 		t.Errorf("expected a formData event in output, got: %s", out)
 	}
 	if !strings.Contains(out, `"mndaTermType":"expires"`) {
 		t.Errorf("expected extracted form data JSON in output, got: %s", out)
+	}
+
+	replyDoneIdx := strings.Index(out, "event: replyDone")
+	formDataIdx := strings.Index(out, "event: formData")
+	lastMessageIdx := strings.LastIndex(out, "event: message")
+	if !(lastMessageIdx < replyDoneIdx && replyDoneIdx < formDataIdx) {
+		t.Errorf("expected event order message -> replyDone -> formData, got: %s", out)
 	}
 }
 

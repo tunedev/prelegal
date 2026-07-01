@@ -32,6 +32,32 @@ func TestStreamChatReply_IncludesResponseBodyOnFailure(t *testing.T) {
 	}
 }
 
+func TestStreamChatReply_TimesOutInsteadOfHangingForever(t *testing.T) {
+	streamTimeout = 50 * time.Millisecond
+	defer func() { streamTimeout = 45 * time.Second }()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(500 * time.Millisecond)
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"too late\"}}]}\n\n"))
+	}))
+	defer server.Close()
+
+	client := newOpenRouterClient("test-key")
+	client.baseURL = server.URL
+
+	start := time.Now()
+	_, err := client.StreamChatReply(context.Background(), []ChatMessage{{Role: "user", Content: "hi"}}, func(string) {})
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Fatal("expected a timeout error, got nil")
+	}
+	if elapsed > 400*time.Millisecond {
+		t.Errorf("expected the call to time out around 50ms, took %v", elapsed)
+	}
+}
+
 func TestStreamChatReply_StreamsChunksAndReturnsFullText(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]any
@@ -238,6 +264,35 @@ func TestExtractFormData_RetriesOnceOnMalformedResponse(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("expected the retry to widen the model list to include openrouter/free as a last resort, got %v", modelsPerAttempt[1])
+	}
+}
+
+func TestExtractFormData_TimesOutEachAttemptInsteadOfHangingForever(t *testing.T) {
+	extractionTimeout = 50 * time.Millisecond
+	extractionRetryDelay = 0
+	defer func() {
+		extractionTimeout = 20 * time.Second
+		extractionRetryDelay = 2 * time.Second
+	}()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(500 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	client := newOpenRouterClient("test-key")
+	client.baseURL = server.URL
+
+	start := time.Now()
+	_, err := client.ExtractFormData(context.Background(), []ChatMessage{{Role: "user", Content: "hi"}})
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Fatal("expected a timeout error, got nil")
+	}
+	if elapsed > 800*time.Millisecond {
+		t.Errorf("expected both attempts to time out quickly (~100ms), took %v", elapsed)
 	}
 }
 
