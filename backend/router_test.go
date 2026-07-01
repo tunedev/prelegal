@@ -15,7 +15,7 @@ func testStaticFS() fstest.MapFS {
 }
 
 func TestRouter_ServesStaticAsset(t *testing.T) {
-	e := newRouter(testStaticFS())
+	e := newRouter(testStaticFS(), newOpenRouterClient("test-key"))
 
 	req := httptest.NewRequest(http.MethodGet, "/assets/app.js", nil)
 	rec := httptest.NewRecorder()
@@ -30,7 +30,7 @@ func TestRouter_ServesStaticAsset(t *testing.T) {
 }
 
 func TestRouter_FallsBackToIndexForClientRoutes(t *testing.T) {
-	e := newRouter(testStaticFS())
+	e := newRouter(testStaticFS(), newOpenRouterClient("test-key"))
 
 	req := httptest.NewRequest(http.MethodGet, "/login", nil)
 	rec := httptest.NewRecorder()
@@ -45,7 +45,7 @@ func TestRouter_FallsBackToIndexForClientRoutes(t *testing.T) {
 }
 
 func TestRouter_HealthRouteNotOverriddenByStatic(t *testing.T) {
-	e := newRouter(testStaticFS())
+	e := newRouter(testStaticFS(), newOpenRouterClient("test-key"))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
 	rec := httptest.NewRecorder()

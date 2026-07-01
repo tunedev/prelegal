@@ -18,12 +18,16 @@
   }
 </script>
 
-{#if page.url.pathname !== '/login' && isLoggedIn()}
-  <div class="flex justify-end px-4 py-2">
-    <button onclick={handleLogout} class="text-xs text-graytext hover:text-navy transition-colors">
-      Log out
-    </button>
-  </div>
-{/if}
+<div class="flex flex-col h-screen">
+  {#if page.url.pathname !== '/login' && isLoggedIn()}
+    <div class="flex justify-end px-4 py-2 shrink-0">
+      <button onclick={handleLogout} class="text-xs text-graytext hover:text-navy transition-colors">
+        Log out
+      </button>
+    </div>
+  {/if}
 
-{@render children()}
+  <div class="flex-1 min-h-0">
+    {@render children()}
+  </div>
+</div>
