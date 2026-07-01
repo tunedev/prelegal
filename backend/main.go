@@ -7,7 +7,11 @@ import (
 	"os"
 )
 
-//go:embed web/static
+// The "all:" prefix is required because go:embed otherwise excludes any
+// file or directory whose name starts with "_" or ".", and SvelteKit's
+// build output puts every asset under "_app/".
+//
+//go:embed all:web/static
 var embeddedStatic embed.FS
 
 const dbPath = "data/app.db"

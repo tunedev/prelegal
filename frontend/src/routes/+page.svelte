@@ -22,7 +22,7 @@
   }
 </script>
 
-<div class="app-root flex flex-col h-screen bg-gray-50">
+<div class="app-root flex flex-col h-full bg-gray-50">
   <header class="app-header flex items-center justify-between px-6 py-4 bg-white border-b shadow-sm shrink-0">
     <div>
       <h1 class="text-xl font-semibold text-gray-900">Mutual NDA Creator</h1>

@@ -1,0 +1,1 @@
+Placeholder proving go:embed's "all:" prefix embeds directories starting with "_", which is required since SvelteKit's real build output lives under _app/.
