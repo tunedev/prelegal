@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 )
@@ -156,7 +157,8 @@ func (c *OpenRouterClient) post(ctx context.Context, body map[string]any) (*http
 	}
 	if resp.StatusCode != http.StatusOK {
 		defer resp.Body.Close()
-		return nil, fmt.Errorf("OpenRouter returned status %d", resp.StatusCode)
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("OpenRouter returned status %d: %s", resp.StatusCode, respBody)
 	}
 	return resp, nil
 }

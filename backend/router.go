@@ -5,12 +5,15 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 // newRouter wires up the API routes and serves staticFS as a single-page
 // app, falling back to index.html for any path that isn't a real asset.
 func newRouter(staticFS fs.FS, chatClient *OpenRouterClient) *echo.Echo {
 	e := echo.New()
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
 
 	e.GET("/api/health", healthHandler)
 	e.POST("/api/chat", newChatHandler(chatClient))

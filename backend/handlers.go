@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -38,6 +39,7 @@ func newChatHandler(client *OpenRouterClient) echo.HandlerFunc {
 			writeSSEString(res, "message", chunk)
 		})
 		if err != nil {
+			log.Printf("chat: streaming reply failed: %v", err)
 			writeSSEString(res, "error", err.Error())
 			return nil
 		}
@@ -46,6 +48,7 @@ func newChatHandler(client *OpenRouterClient) echo.HandlerFunc {
 		extractMessages := append([]ChatMessage{{Role: "system", Content: extractSystemPrompt}}, transcript...)
 		formData, err := client.ExtractFormData(c.Request().Context(), extractMessages)
 		if err != nil {
+			log.Printf("chat: extracting form data failed: %v", err)
 			writeSSEString(res, "error", err.Error())
 			return nil
 		}

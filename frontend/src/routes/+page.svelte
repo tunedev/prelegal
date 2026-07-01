@@ -38,7 +38,7 @@
 
   <div class="flex flex-1 min-h-0">
     <!-- Chat Panel -->
-    <div class="chat-panel w-2/5 border-r bg-white">
+    <div class="chat-panel w-2/5 min-h-0 overflow-hidden border-r bg-white">
       <Chat onFormData={(data) => (form = data)} />
     </div>
 

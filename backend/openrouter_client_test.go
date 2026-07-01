@@ -5,8 +5,31 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
+
+func TestStreamChatReply_IncludesResponseBodyOnFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error":{"message":"No auth credentials found"}}`))
+	}))
+	defer server.Close()
+
+	client := newOpenRouterClient("")
+	client.baseURL = server.URL
+
+	_, err := client.StreamChatReply(context.Background(), []ChatMessage{{Role: "user", Content: "hi"}}, func(string) {})
+	if err == nil {
+		t.Fatal("expected an error, got nil")
+	}
+	if !strings.Contains(err.Error(), "No auth credentials found") {
+		t.Errorf("expected error to include the response body so operators can diagnose failures, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "401") {
+		t.Errorf("expected error to include the status code, got: %v", err)
+	}
+}
 
 func TestStreamChatReply_StreamsChunksAndReturnsFullText(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -24,7 +24,12 @@ func main() {
 	}
 	defer db.Close()
 
-	chatClient := newOpenRouterClient(os.Getenv("OPENROUTER_API_KEY"))
+	apiKey := os.Getenv("OPENROUTER_API_KEY")
+	if apiKey == "" {
+		log.Println("WARNING: OPENROUTER_API_KEY is not set — the AI chat will fail on every request. " +
+			"If you're running this outside Docker, export it or run with `--env-file .env` / `set -a; source .env; set +a`.")
+	}
+	chatClient := newOpenRouterClient(apiKey)
 
 	e := newRouter(staticFS, chatClient)
 	log.Fatal(e.Start(":8000"))
