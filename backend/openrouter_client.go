@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type ChatMessage struct {
@@ -20,6 +21,14 @@ var chatModels = []string{
 	"qwen/qwen3-next-80b-a3b-instruct:free",
 	"openrouter/free",
 }
+
+// extractionModels excludes the openrouter/free wildcard router used by
+// chatModels. That router can land on very small, unreliable free models
+// (observed in production: a 1.2B model that hit finish_reason "length"
+// after producing only a couple of the schema's fields). Structured-output
+// correctness matters more for extraction than for the conversational
+// reply, so it sticks to the two named, more capable models.
+var extractionModels = chatModels[:2]
 
 type OpenRouterClient struct {
 	baseURL    string
@@ -54,12 +63,37 @@ func (c *OpenRouterClient) StreamChatReply(ctx context.Context, messages []ChatM
 	return streamOpenRouterChunks(resp.Body, onChunk)
 }
 
-// ExtractFormData makes a single structured-output call over the given
+// extractionRetryDelay is how long ExtractFormData waits before retrying
+// after a failure (e.g. a free model rate limit), so the retry isn't an
+// instant repeat of whatever just failed. Overridden to 0 in tests.
+var extractionRetryDelay = 2 * time.Second
+
+// ExtractFormData makes a structured-output call over the given
 // conversation, returning the model's current best-guess NDA field values.
+// Free models occasionally return truncated/malformed JSON or a transient
+// rate limit, so this retries once after a short delay, widening the model
+// list to the full fallback chain (including the openrouter/free wildcard
+// router) in case the preferred named models are unavailable.
 func (c *OpenRouterClient) ExtractFormData(ctx context.Context, messages []ChatMessage) (FormData, error) {
+	data, err := c.extractFormDataOnce(ctx, messages, extractionModels)
+	if err != nil {
+		select {
+		case <-time.After(extractionRetryDelay):
+		case <-ctx.Done():
+			return FormData{}, ctx.Err()
+		}
+		data, err = c.extractFormDataOnce(ctx, messages, chatModels)
+	}
+	if err != nil {
+		return FormData{}, err
+	}
+	return data.trimmed(), nil
+}
+
+func (c *OpenRouterClient) extractFormDataOnce(ctx context.Context, messages []ChatMessage, models []string) (FormData, error) {
 	reqBody := map[string]any{
-		"model":       chatModels[0],
-		"models":      chatModels,
+		"model":       models[0],
+		"models":      models,
 		"messages":    messages,
 		"stream":      false,
 		"temperature": 0,
@@ -98,7 +132,7 @@ func (c *OpenRouterClient) ExtractFormData(ctx context.Context, messages []ChatM
 	if err := json.Unmarshal([]byte(content), &data); err != nil {
 		return FormData{}, fmt.Errorf("parsing extracted form data: %w", err)
 	}
-	return data.trimmed(), nil
+	return data, nil
 }
 
 // trimmed returns a copy of the form data with leading/trailing whitespace

@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestStreamChatReply_IncludesResponseBodyOnFailure(t *testing.T) {
@@ -135,6 +136,108 @@ func TestExtractFormData_TrimsWhitespaceOnlyFields(t *testing.T) {
 	}
 	if data.Party1.Company != "" || data.Party2.Name != "" || data.Purpose != "" || data.GoverningLaw != "" {
 		t.Errorf("expected whitespace-only fields to be trimmed to empty string, got %+v", data)
+	}
+}
+
+func TestExtractFormData_ExcludesWildcardFreeRouterFromModelList(t *testing.T) {
+	// openrouter/free is a wildcard that can route to any free model,
+	// including very small/unreliable ones observed in production to
+	// truncate structured JSON output (finish_reason "length" after only
+	// a couple of fields). The extraction call needs correctness more
+	// than the conversational reply does, so it uses a curated list.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+
+		models, _ := body["models"].([]any)
+		for _, m := range models {
+			if m == "openrouter/free" {
+				t.Errorf("expected extraction model list to exclude the openrouter/free wildcard router, got %v", models)
+			}
+		}
+		if len(models) == 0 {
+			t.Errorf("expected a non-empty models list, got %v", body["models"])
+		}
+
+		formJSON := `{"party1":{"name":"","title":"","company":"","address":""},` +
+			`"party2":{"name":"","title":"","company":"","address":""},` +
+			`"effectiveDate":"","mndaTermType":"expires","mndaTermYears":1,` +
+			`"confidentialityTermType":"years","confidentialityTermYears":3,` +
+			`"purpose":"","governingLaw":"","jurisdiction":"","modifications":""}`
+		resp := map[string]any{"choices": []map[string]any{{"message": map[string]any{"content": formJSON}}}}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	client := newOpenRouterClient("test-key")
+	client.baseURL = server.URL
+
+	if _, err := client.ExtractFormData(context.Background(), []ChatMessage{{Role: "user", Content: "hi"}}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestExtractFormData_RetriesOnceOnMalformedResponse(t *testing.T) {
+	extractionRetryDelay = 0
+	defer func() { extractionRetryDelay = 2 * time.Second }()
+
+	attempt := 0
+	var modelsPerAttempt [][]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempt++
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		models, _ := body["models"].([]any)
+		modelsPerAttempt = append(modelsPerAttempt, models)
+		w.Header().Set("Content-Type", "application/json")
+
+		if attempt == 1 {
+			// Simulates a truncated/malformed structured-output response,
+			// as seen in production from a small free model.
+			resp := map[string]any{
+				"choices": []map[string]any{{"message": map[string]any{"content": `{"confidentialityTermType": "years"`}}},
+			}
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
+
+		formJSON := `{"party1":{"name":"Alice","title":"","company":"","address":""},` +
+			`"party2":{"name":"","title":"","company":"","address":""},` +
+			`"effectiveDate":"","mndaTermType":"expires","mndaTermYears":1,` +
+			`"confidentialityTermType":"years","confidentialityTermYears":3,` +
+			`"purpose":"","governingLaw":"","jurisdiction":"","modifications":""}`
+		resp := map[string]any{"choices": []map[string]any{{"message": map[string]any{"content": formJSON}}}}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	client := newOpenRouterClient("test-key")
+	client.baseURL = server.URL
+
+	data, err := client.ExtractFormData(context.Background(), []ChatMessage{{Role: "user", Content: "I'm Alice"}})
+	if err != nil {
+		t.Fatalf("expected the retry to succeed, got error: %v", err)
+	}
+	if data.Party1.Name != "Alice" {
+		t.Errorf("expected party1 name Alice from the retried response, got %+v", data.Party1)
+	}
+	if attempt != 2 {
+		t.Fatalf("expected exactly 2 attempts (1 failure + 1 retry), got %d", attempt)
+	}
+	for _, m := range modelsPerAttempt[0] {
+		if m == "openrouter/free" {
+			t.Errorf("expected the first attempt to use the curated model list, got %v", modelsPerAttempt[0])
+		}
+	}
+	found := false
+	for _, m := range modelsPerAttempt[1] {
+		if m == "openrouter/free" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected the retry to widen the model list to include openrouter/free as a last resort, got %v", modelsPerAttempt[1])
 	}
 }
 
